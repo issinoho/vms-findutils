@@ -90,6 +90,11 @@ Every problem met and its fix is in [docs/PORTING_LOG.md](docs/PORTING_LOG.md); 
 decisions are in [docs/DECISIONS.md](docs/DECISIONS.md), and the rules and pitfalls for working
 on the port in `CLAUDE.md`.
 
+## Licence
+
+GNU findutils is free software under the GNU General Public License, version 3 or later;
+see `COPYING`. Our patches and VMS files are distributed under the same terms.
+
 ## Artwork
 
 `docs/images/banner.svg` and `docs/images/icon.svg` were made for this project in the style of
