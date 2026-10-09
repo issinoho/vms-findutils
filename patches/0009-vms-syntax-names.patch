@@ -1,0 +1,173 @@
+Subject: find: on OpenVMS, VMS-syntax starting points and names
+
+A starting point in VMS syntax ("[.tree]", "[]", "DKA0:[X]", "tree.dir")
+is converted to a Unix name for the walk, and the names under it are
+shown in VMS syntax: [.tree.sub]two.txt, a directory as [.tree]sub.DIR
+(vms/vms_names.c; docs/DECISIONS.md D2).  This covers -print, -fprint,
+-print0, -fprint0, -ls, -fls, -printf's %p and the {} of -exec and -ok;
+-execdir's "./name" becomes "[]name".  A Unix starting point keeps Unix
+names, as on Unix.
+
+--- b/find/ftsfind.c	2026-06-28 08:48:18.000000000 +0100
++++ c/find/ftsfind.c	2026-10-09 21:07:43.544139969 +0100
+@@ -52,6 +52,9 @@
+ 
+ /* find headers. */
+ #include "defs.h"
++#ifdef __VMS
++# include "vms_names.h"
++#endif
+ #include "dircallback.h"
+ #include "fdleak.h"
+ #include "unused-result.h"
+@@ -626,6 +629,9 @@
+            * "find -printf %H" (note, not "find . -printf %H").
+            */
+           char defaultpath[2] = ".";
++#ifdef __VMS
++          vms_start_point (defaultpath);
++#endif
+           return find (defaultpath);
+         }
+ 
+@@ -687,6 +693,11 @@
+       if (!options.files0_from && looks_like_expression (file_name, true))
+         break;
+ 
++#ifdef __VMS
++      /* A VMS-syntax starting point is walked by its Unix name; names
++         under it are shown in VMS syntax (vms/vms_names.c, D2).  */
++      file_name = vms_start_point (file_name);
++#endif
+       state.starting_path_length = strlen (file_name); /* TODO: is this redundant? */
+       if (!find (file_name))
+         {
+--- b/find/pred.c	2026-06-27 12:44:31.000000000 +0100
++++ c/find/pred.c	2026-10-09 21:07:43.544292314 +0100
+@@ -45,6 +45,9 @@
+ 
+ /* find headers. */
+ #include "defs.h"
++#ifdef __VMS
++# include "vms_names.h"
++#endif
+ #include "dircallback.h"
+ #include "listfile.h"
+ #include "printquoted.h"
+@@ -369,6 +372,9 @@
+ pred_fls (const char *pathname, struct stat *stat_buf, struct predicate *pred_ptr)
+ {
+   FILE * stream = pred_ptr->args.printf_vec.stream;
++#ifdef __VMS
++  pathname = vms_display_name (pathname, state.have_type && S_ISDIR (state.type));
++#endif
+   list_file (pathname, state.cwd_dir_fd, state.rel_pathname, stat_buf,
+              options.start_time.tv_sec,
+              options.output_block_size,
+@@ -381,6 +387,9 @@
+ {
+   (void) &pathname;
+   (void) &stat_buf;
++#ifdef __VMS
++  pathname = vms_display_name (pathname, state.have_type && S_ISDIR (state.type));
++#endif
+ 
+   print_quoted (pred_ptr->args.printf_vec.stream,
+                 pred_ptr->args.printf_vec.quote_opts,
+@@ -396,6 +405,9 @@
+   FILE * fp = pred_ptr->args.printf_vec.stream;
+ 
+   (void) &stat_buf;
++#ifdef __VMS
++  pathname = vms_display_name (pathname, state.have_type && S_ISDIR (state.type));
++#endif
+ 
+   fputs (pathname, fp);
+   putc (0, fp);
+@@ -794,6 +806,9 @@
+ {
+   (void) stat_buf;
+   (void) pred_ptr;
++#ifdef __VMS
++  pathname = vms_display_name (pathname, state.have_type && S_ISDIR (state.type));
++#endif
+ 
+   print_quoted (pred_ptr->args.printf_vec.stream,
+                 pred_ptr->args.printf_vec.quote_opts,
+--- b/find/print.c	2026-06-27 12:44:31.000000000 +0100
++++ c/find/print.c	2026-10-09 21:07:43.546022662 +0100
+@@ -43,6 +43,9 @@
+ /* find-specific headers. */
+ #include "system.h"
+ #include "defs.h"
++#ifdef __VMS
++# include "vms_names.h"
++#endif
+ #include "print.h"
+ 
+ 
+@@ -1098,7 +1101,13 @@
+ 
+         case 'p':               /* pathname */
+           /* sanitised */
++#ifdef __VMS
++          checked_print_quoted (dest, segment->text,
++                                vms_display_name (pathname, state.have_type
++                                                  && S_ISDIR (state.type)));
++#else
+           checked_print_quoted (dest, segment->text, pathname);
++#endif
+           break;
+ 
+         case 'P':               /* pathname with ARGV element stripped */
+--- b/find/exec.c	2026-10-09 21:05:14.828420648 +0100
++++ c/find/exec.c	2026-10-09 21:08:09.808439212 +0100
+@@ -39,6 +39,7 @@
+ #include "fdleak.h"
+ #include "system.h"
+ #ifdef __VMS
++# include "vms_names.h"
+ # include "vms_spawn.h"
+ #endif
+ 
+@@ -152,6 +153,30 @@
+       pfxlen = 0u;
+     }
+ 
++#ifdef __VMS
++  /* For a VMS starting point, {} is the name in VMS syntax, as find
++     shows it (vms/vms_names.c, D2); -execdir's "./name" is "[]name".  */
++  char *vms_target = NULL;
++  if (vms_display_vms ())
++    {
++      bool is_dir = state.have_type && S_ISDIR (state.type);
++      if (prefix)
++        {
++          size_t tlen = strlen (target);
++          char *dotted = xmalloc (pfxlen + tlen + 1);
++          memcpy (dotted, prefix, pfxlen);
++          memcpy (dotted + pfxlen, target, tlen + 1);
++          vms_target = xstrdup (vms_display_name (dotted, is_dir));
++          free (dotted);
++          prefix = NULL;
++          pfxlen = 0u;
++        }
++      else
++        vms_target = xstrdup (vms_display_name (target, is_dir));
++      target = vms_target;
++    }
++#endif
++
+   if (execp->multiple)
+     {
+       /* Push the argument onto the current list.
+@@ -214,6 +239,9 @@
+       assert (local);
+       free (buf);
+     }
++#ifdef __VMS
++  free (vms_target);
++#endif
+   return result;
+ }
+ 

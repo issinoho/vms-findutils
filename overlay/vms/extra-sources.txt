@@ -4,3 +4,4 @@ vms/vms_exit.c
 vms/vms_fwrite.c
 vms/vms_spawn.c
 vms/vms_mountlist.c
+vms/vms_names.c

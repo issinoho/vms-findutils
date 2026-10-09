@@ -7,3 +7,4 @@
 0006-find-exec-without-fork-vms.patch
 0007-xargs-without-fork-vms.patch
 0008-buildcmd-dcl-limit-vms.patch
+0009-vms-syntax-names.patch
