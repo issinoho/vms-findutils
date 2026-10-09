@@ -17,7 +17,7 @@ Work in progress.
 | Configure with VSI C (`tools/vms_configure.sh`) | done | done (same answers) |
 | Build (`tools/build.sh`) | clean | clean |
 | DCL smoke test, 25 checks (`tools/test.sh`) | 25/25 | 25/25 |
-| PCSI kit `ISSINOHO <base> FINDUTILS V4.11-0E1` (`tools/kit.sh`) | - | - |
+| PCSI kit `ISSINOHO <base> FINDUTILS V4.11-0E1` (`tools/kit.sh`) | built | built |
 | Install check (`tools/installcheck.sh`) | - | - |
 
 The first release will ship find and xargs. locate needs a DCL replacement for the
