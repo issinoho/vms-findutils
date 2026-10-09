@@ -72,24 +72,35 @@ $!
 $! --- find ---------------------------------------------------------------
 $ call t version   0 ""                      "find --version"
 $ call t list      0 "''treelist'"           "find tree"
-$ call t list-vms  0 "''treelist'"           "find [.tree]"
+$! A VMS starting point gives VMS names (DECISIONS D2).
+$ call t list-vms  0 "[.tree]|[.tree]empty.DIR|[.tree]one.txt|[.tree]sub.DIR|[.tree.sub]two.txt" "find [.tree]"
+$ call t list-cur  0 "[.tree.sub]two.txt"    "find [] -name two.txt"
+$ call t list-dir  0 "tree.dir|[.tree]empty.DIR|[.tree]one.txt|[.tree]sub.DIR|[.tree.sub]two.txt" "find tree.dir"
 $ call t name      0 "tree/one.txt|tree/sub/two.txt" "find tree -name ""*.txt"""
 $ call t type-d    0 "tree|tree/empty|tree/sub"      "find tree -type d"
 $ call t empty     0 "tree/empty"            "find tree -empty"
-$ call t missing   1 "find: 'nosuch': No such file or directory" "find nosuch"
+$ call t missing   1 "find: 'nosuch': no such file or directory" "find nosuch"
 $!
 $! --- find -exec (DCL through LIB$SPAWN) --------------------------------
 $ call t exec-verb 0 "tree/one.txt"          "find tree -name one.txt -exec write sys$output {} ;"
 $ call t exec-proc 0 "tree/one.txt|tree/sub/two.txt" "find tree -name ""*.txt"" -exec echo {} ;"
 $ call t exec-plus 0 "tree/one.txt tree/sub/two.txt" "find tree -name ""*.txt"" -exec echo {} +"
-$ call t exec-case 0 "MiXed tree/one.txt"    "find tree -name one.txt -exec echo MiXed {} ;"
-$ call t exec-false 0 ""                     "find tree -name one.txt -exec failcmd ; -print"
+$! A typed word keeps its case for a foreign command (a procedure's
+$! parameters are upper-cased by DCL): find's own message shows it.
+$ call t exec-case 0 "find: 'MiXed': no such file or directory" "find tree -name one.txt -exec find MiXed ;"
+$! A failing command makes -exec false (so no -print); its message is shown once.
+$ call t exec-false 0 "%SYSTEM-F-ABORT, abort" "find tree -name one.txt -exec failcmd ; -print"
 $ call t execdir   0 "./two.txt"             "find tree -name two.txt -execdir echo {} ;"
+$! With VMS names, a DCL verb can act on the files.
+$ call t exec-type 0 "the first line"        "find [.tree] -name one.txt -exec type {} ;"
+$! (A VMS file specification goes unquoted, for DCL verbs, so a procedure's
+$! parameter is upper-cased.)
+$ call t execdir-vms 0 "[]TWO.TXT"           "find [.tree] -name two.txt -execdir echo {} ;"
 $!
 $! --- xargs --------------------------------------------------------------
 $ call t xargs     0 "a b c"                 "xargs echo"       names.txt
 $ call t xargs-n   0 "a|b|c"                 "xargs -n 1 echo"  names.txt
-$ call t xargs-123 123 ""                    "xargs failcmd"    names.txt
+$ call t xargs-123 123 "%SYSTEM-F-ABORT, abort"                  "xargs failcmd"    names.txt
 $ call t xargs-127 127 "*"                   "xargs nosuchverb" names.txt
 $!
 $! find piped into xargs, as on Unix.
@@ -101,12 +112,36 @@ $pipe_eof:
 $ close f
 $ call check pipe "line .eqs. ""tree/one.txt tree/sub/two.txt"""
 $!
+$! A long input is split over several DCL commands (about 4000 bytes of
+$! arguments each, vms_spawn.h): 800 names, about 8 KB quoted, all run.
+$ open/write m many.txt
+$ i = 0
+$many_loop:
+$ write m "ref.txt"
+$ i = i + 1
+$ if i .lt. 800 then goto many_loop
+$ close m
+$ define/user sys$input many.txt
+$ define/user sys$output many.out
+$ xargs find
+$ st = $status
+$ n = 0
+$ open/read m many.out
+$count_loop:
+$ read/end=count_done m line
+$ if line .eqs. "ref.txt" then n = n + 1
+$ goto count_loop
+$count_done:
+$ close m
+$ call check split "n .eq. 800 .and. st"
+$!
 $! Under DCL a failure must have error severity, so ON ERROR and
 $! IF .NOT. $STATUS see it.
 $ define/user sys$output nl:
 $ define/user sys$error nl:
 $ find nosuch
-$ call check severity "$severity .eq. 2"
+$ sev = $severity
+$ call check severity "sev .eq. 2"
 $!
 $! No temporary files left in SYS$SCRATCH.
 $ call check scratch "f$search(""SYS$SCRATCH:FIND_*.*"") .eqs. """" .and. f$search(""SYS$SCRATCH:XARGS_*.*"") .eqs. """""
