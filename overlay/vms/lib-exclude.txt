@@ -4,3 +4,6 @@
 # posix_spawn emulation: needs fork(), which VMS lacks.  find -exec and
 # xargs run commands through vms/vms_spawn.c instead.
 spawn*.c
+# No OpenVMS method for the mount list (#error "Please port gnulib
+# mountlist.c to your platform!"); vms/vms_mountlist.c returns none.
+mountlist.c

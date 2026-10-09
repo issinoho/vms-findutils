@@ -24,7 +24,12 @@ CC = CC
 CFLAGS = $(CC_QUAL)/NOLIST/INCLUDE_DIRECTORY=("./","./gl/lib","./lib","./find","./locate","./vms")-
 	/DEFINE=($(CC_DEFS),HAVE_CONFIG_H)
 
-ALL : $(BIN)FIND.EXE, $(BIN)XARGS.EXE, $(BIN)LOCATE.EXE, $(BIN)FRCODE.EXE
+ALL : $(BIN)FIND.EXE, $(BIN)XARGS.EXE
+	@ CONTINUE
+
+! locate and frcode are not built yet: they need LOCATE_DB and a DCL
+! replacement for the updatedb shell script (README).
+LOCATE : $(BIN)LOCATE.EXE, $(BIN)FRCODE.EXE
 	@ CONTINUE
 
 ! "-": LINK ends with a warning status (%ILINK-W-COMPWARN) when modules
