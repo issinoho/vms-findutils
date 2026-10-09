@@ -14,7 +14,13 @@ vms-m4 (`syscmd`) and vms-tar (`vms_spawn.c`) do:
 - the subprocess runs a small generated procedure that drops the SYS$OUTPUT and SYS$ERROR
   it inherits, so a redirected find or xargs output is not reopened (%DCL-W-UNDFIL, empty
   new versions);
-- every argument is quoted, so DCL keeps its case and spaces;
+- only the file names are quoted (what find substitutes for `{}`, the items xargs reads),
+  so DCL keeps their case, spaces and slashes; the words the user typed are DCL syntax and
+  are passed as they are, so qualifiers and keywords work (`-exec set file/attr=rfm:stm {} ;`,
+  `-exec write sys$output {} ;`). A typed word with a space or an empty one is quoted too.
+  The procedure sets PARSE_STYLE=EXTENDED, so foreign commands get unquoted words in their
+  case. (Revised 2026-10-09: the first version quoted every argument, which turned
+  qualifiers and keywords into strings.)
 - the command's output goes to a temporary file in SYS$SCRATCH, copied to find's or
   xargs's stdout when the command ends (commands run one at a time, so order is kept);
 - the exit status is 0 for success, the POSIX exit code when the program exited with one,
@@ -29,3 +35,16 @@ and xargs pass many names per command.
 
 **xargs -P:** the first release runs commands one at a time; `-P N` acts as `-P 1`, and the
 kit's README.VMS says so. Parallel runs (`LIB$SPAWN` with NOWAIT) can come later.
+
+## D2. File-name syntax: follow the starting point
+
+**Status:** decided by the user (2026-10-09); not yet implemented.
+
+`find . ` and `find tree` print Unix names (`tree/sub/two.txt`), as on Unix, for scripts and
+the family's Unix tools. `find []` and `find [.tree]` print VMS names (`[.tree.sub]two.txt`),
+which DCL verbs in `-exec` (TYPE, DELETE, SET FILE) accept. A VMS-syntax starting point is
+converted to a Unix name for the walk (as vms-tar D2), and the names are converted back on
+output and for `{}`.
+
+**Rejected:** always Unix (DCL verbs in `-exec` cannot use the names); always VMS (breaks
+scripts and tools that expect find's usual output).

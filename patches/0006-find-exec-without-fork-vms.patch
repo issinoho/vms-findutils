@@ -5,11 +5,14 @@ instead, through vms_spawn_command() (vms/vms_spawn.c; docs/DECISIONS.md
 D1), so DCL verbs and foreign-command symbols work as well as images.
 The subprocess starts in our default directory, so for -execdir and
 -okdir launch() changes to the file's directory around it and back.
+Only the file names are quoted: with "+" the arguments after the
+initial ones, with ";" the words that contained {}; the words the user
+typed are passed to DCL as they are, so qualifiers and keywords work.
 A command line too long for DCL returns 0, as for E2BIG, and
 bc_do_exec() tries again with fewer arguments.
 
 --- a/find/exec.c	2026-06-28 12:28:31.000000000 +0100
-+++ b/find/exec.c	2026-10-09 19:45:07.254897719 +0100
++++ b/find/exec.c	2026-10-09 19:54:42.136612062 +0100
 @@ -38,6 +38,9 @@
  #include "defs.h"
  #include "fdleak.h"
@@ -20,7 +23,7 @@ bc_do_exec() tries again with fewer arguments.
  
  
  /* Initialize exec->wd_for_exec.
-@@ -316,6 +319,38 @@
+@@ -316,6 +319,51 @@
        signal (SIGCHLD, SIG_DFL);
      }
  
@@ -42,7 +45,20 @@ bc_do_exec() tries again with fewer arguments.
 +    else if (bc_args_exceed_testing_limit (argv))
 +      rc = VMS_SPAWN_TOO_LONG;
 +    else
-+      rc = vms_spawn_command ("FIND", argv, execp->close_stdin);
++      {
++        /* Quote the file names, not the words the user typed (D1): with
++           "+" the names follow the initial arguments; with ";" they are
++           the words that contained {}.  */
++        bool *quote = xcalloc (argc + 1, sizeof *quote);
++        int i;
++        for (i = 1; i < argc; i++)
++          quote[i] = execp->multiple
++                     ? (size_t) i >= execp->ctl.initial_argc
++                     : i < execp->num_args
++                       && strstr (execp->replace_vec[i], "{}") != NULL;
++        rc = vms_spawn_command ("FIND", argv, quote, execp->close_stdin);
++        free (quote);
++      }
 +    if (0 != restore_cwd (&here))
 +      error (EXIT_FAILURE, errno, _("Failed to restore working directory"));
 +    free_cwd (&here);
@@ -59,7 +75,7 @@ bc_do_exec() tries again with fewer arguments.
    child_pid = fork ();
    if (child_pid == -1)
      {
-@@ -383,6 +418,7 @@
+@@ -383,6 +431,7 @@
      }
  
    int ex = WEXITSTATUS (execp->last_child_status);

@@ -7,8 +7,8 @@
    copies our process logical names, including a SYS$OUTPUT or SYS$ERROR
    that redirects our own output, and those would make the command reopen
    the user's file (%DCL-W-UNDFIL, or an empty new version); so the
-   procedure drops them first, then runs the command with every argument
-   but the verb quoted.  The command's output goes to a temporary file,
+   procedure drops them first, then runs the command with the file names
+   quoted and the user's own words as DCL syntax.  The command's output goes to a temporary file,
    copied to our stdout when it ends: commands run one at a time, so their
    output stays in order with find's own.  (As in vms-m4 and vms-tar.)
 
@@ -54,34 +54,43 @@ set_descriptor (struct dsc$descriptor_s *d, char const *s)
   d->dsc$a_pointer = (char *) s;
 }
 
+/* Whether argument I of ARGV is written in quotes.  */
+static bool
+quoted (char *const *argv, bool const *quote, size_t i)
+{
+  return (quote ? quote[i] : true)
+         || argv[i][0] == '\0' || strpbrk (argv[i], " \t\"") != NULL;
+}
+
 /* The length of ARGV as one DCL command line, as written below.  */
 static size_t
-command_length (char *const *argv)
+command_length (char *const *argv, bool const *quote)
 {
   size_t n = strlen (argv[0]);
-  char *const *a;
-  for (a = argv + 1; *a; a++)
+  size_t i;
+  for (i = 1; argv[i]; i++)
     {
       char const *p;
-      n += 3;                   /* space and two quotes */
-      for (p = *a; *p; p++)
+      n += 1 + (quoted (argv, quote, i) ? 2 : 0);
+      for (p = argv[i]; *p; p++)
         n += 1 + (*p == '"');
     }
   return n;
 }
 
 int
-vms_spawn_command (char const *prefix, char *const *argv, bool null_stdin)
+vms_spawn_command (char const *prefix, char *const *argv,
+                   bool const *quote, bool null_stdin)
 {
   static unsigned int counter;
   char com[96], out[96], spawncmd[112];
   struct dsc$descriptor_s cmd_d, in_d, out_d;
   unsigned int status, completion = 0;
-  char *const *a;
+  size_t i;
   FILE *c;
   int ch;
 
-  if (command_length (argv) > VMS_DCL_MAX)
+  if (command_length (argv, quote) > VMS_DCL_MAX)
     return VMS_SPAWN_TOO_LONG;
 
   ++counter;
@@ -102,20 +111,23 @@ vms_spawn_command (char const *prefix, char *const *argv, bool null_stdin)
          " then deassign/user sys$error\n"
          "$ if f$trnlnm(\"SYS$ERROR\",\"LNM$PROCESS\",,\"SUPERVISOR\") .nes. \"\""
          " then deassign sys$error\n"
-         "$ set message/facility/severity/identification/text\n", c);
+         "$ set message/facility/severity/identification/text\n"
+         "$ set process/parse_style=extended\n", c);
   fprintf (c, "$ %s", argv[0]);
   /* One argument per line: DCL limits the length of a record.  */
-  for (a = argv + 1; *a; a++)
+  for (i = 1; argv[i]; i++)
     {
       char const *p;
-      fputs (" -\n \"", c);
-      for (p = *a; *p; p++)
+      bool q = quoted (argv, quote, i);
+      fputs (q ? " -\n \"" : " -\n ", c);
+      for (p = argv[i]; *p; p++)
         {
           if (*p == '"')
             putc ('"', c);      /* DCL doubles quotes */
           putc (*p, c);
         }
-      putc ('"', c);
+      if (q)
+        putc ('"', c);
     }
   fputs ("\n$ exit $status\n", c);
   if (fclose (c) != 0)
