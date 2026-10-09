@@ -1,0 +1,4 @@
+# VMS-only sources linked into every findutils image (paths relative to the tree root).
+vms/vms_crtl_init.c
+vms/vms_exit.c
+vms/vms_fwrite.c

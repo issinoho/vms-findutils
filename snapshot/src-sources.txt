@@ -1,0 +1,31 @@
+# find (SRC)
+exec.c
+finddata.c
+fstype.c
+ftsfind.c
+parser.c
+pred.c
+print.c
+sharefile.c
+tree.c
+util.c
+# libfind
+bugreports.c
+buildcmd.c
+dircallback.c
+extendbuf.c
+fdleak.c
+findutils-version.c
+listfile.c
+printquoted.c
+qmark.c
+regextype.c
+safe-atoi.c
+splitstring.c
+# xargs
+xargs.c
+# locate
+locate.c
+word_io.c
+# frcode
+frcode.c

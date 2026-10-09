@@ -1,0 +1,6 @@
+# Ordered list of patches applied to the upstream tree (one per line).
+0001-getprogname-vms.patch
+0002-stdlib-vms-exit-severity.patch
+0003-config-h-assert-guard-vms.patch
+0004-stdio-fwrite-records-vms.patch
+0005-open-directory-vms.patch

@@ -1,0 +1,6 @@
+# gnulib sources left out of LIBGNU.OLB on OpenVMS (shell patterns, relative
+# to gl/lib/), each with the reason.  tools/prepare.sh applies this list.
+#
+# posix_spawn emulation: needs fork(), which VMS lacks.  find -exec and
+# xargs will run commands through vms/vms_spawn.c instead.
+spawn*.c

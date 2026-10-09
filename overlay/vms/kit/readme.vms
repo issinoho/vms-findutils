@@ -1,0 +1,40 @@
+GNU findutils for OpenVMS
+=========================
+
+This is GNU findutils @VERSION@ (find and xargs) built natively for OpenVMS
+@ARCH@, from the unmodified release plus the patches in the vms-findutils
+project:
+
+    https://github.com/issinoho/vms-findutils
+
+Kit version: @KITVERSION@.  GNU findutils is free software under the GNU
+General Public License, version 3 or later; see COPYING.  The manuals are
+FIND.1 and XARGS.1, also as plain text in FIND.TXT and XARGS.TXT.
+
+Files
+-----
+    FINDUTILS$ROOT:[BIN]FIND.EXE
+    FINDUTILS$ROOT:[BIN]XARGS.EXE
+    FINDUTILS$ROOT:[DOC]                          this file, COPYING, NEWS, the manuals
+    FINDUTILS$ROOT:[000000]FINDUTILS$SETUP.COM    defines the find and xargs commands
+    SYS$STARTUP:FINDUTILS$STARTUP.COM             defines FINDUTILS$ROOT
+
+Setup
+-----
+The kit installs FINDUTILS$STARTUP.COM into SYS$STARTUP and runs it once.
+To define FINDUTILS$ROOT at every boot, the system manager adds this line to
+SYS$MANAGER:SYSTARTUP_VMS.COM:
+
+    $ @SYS$STARTUP:FINDUTILS$STARTUP.COM
+
+Each user then defines the commands (for example in LOGIN.COM):
+
+    $ @FINDUTILS$ROOT:[000000]FINDUTILS$SETUP.COM
+
+Use
+---
+    $ find . "-name" "*.c"            ! list C sources under the current directory
+
+Known limits
+------------
+locate and updatedb are not included in this release.

@@ -1,0 +1,18 @@
+=product @PRODUCER@ @BASE@ FINDUTILS @PCSIVERSION@ full
+1 'PRODUCER
+=prompt @PRODUCER@
+1 'PRODUCT
+=prompt GNU findutils @VERSION@ for OpenVMS
+1 'NOTICE
+=prompt GNU findutils is free software under the GNU General Public License, version 3 or later; see COPYING.
+1 RELEASE_NOTES
+=prompt Documentation is in [FINDUTILS.DOC]README.VMS under the installation directory.
+1 POST_INSTALL
+=prompt Post-installation tasks for GNU findutils
+    At system startup: to define FINDUTILS$ROOT at every boot, add this line to
+    SYS$MANAGER:SYSTARTUP_VMS.COM:
+    $ @SYS$STARTUP:FINDUTILS$STARTUP.COM
+    For each user: to define the commands, add this line to LOGIN.COM:
+    $ @FINDUTILS$ROOT:[000000]FINDUTILS$SETUP.COM
+
+PRODUCT REMOVE FINDUTILS removes the product and deassigns FINDUTILS$ROOT.

@@ -1,0 +1,33 @@
+--
+-- PCSI product description for GNU findutils on OpenVMS.
+-- Template: tools/prepare.sh substitutes @PRODUCER@, @BASE@ and @PCSIVERSION@.
+--
+product @PRODUCER@ @BASE@ FINDUTILS @PCSIVERSION@ full ;
+
+    information RELEASE_NOTES phase after ;
+
+    directory [FINDUTILS] ;
+    directory [FINDUTILS.BIN] ;
+    directory [FINDUTILS.DOC] ;
+
+    file [FINDUTILS.BIN]FIND.EXE ;
+    file [FINDUTILS.BIN]XARGS.EXE ;
+    file [SYS$STARTUP]FINDUTILS$STARTUP.COM ;
+    file [FINDUTILS]FINDUTILS$SETUP.COM ;
+    file [FINDUTILS.DOC]README.VMS ;
+    file [FINDUTILS.DOC]COPYING. ;
+    file [FINDUTILS.DOC]NEWS. ;
+    file [FINDUTILS.DOC]FIND.TXT ;
+    file [FINDUTILS.DOC]FIND.1 ;
+    file [FINDUTILS.DOC]XARGS.TXT ;
+    file [FINDUTILS.DOC]XARGS.1 ;
+
+    -- Define FINDUTILS$ROOT now and print the post-installation tasks (PCSI shows
+    -- only the title of an information message unless /HELP is given).
+    execute postinstall "@PCSI$DESTINATION:[SYS$STARTUP]FINDUTILS$STARTUP.COM INSTALL" interactive ;
+    -- On removal, deassign FINDUTILS$ROOT.
+    execute install "CONTINUE" remove "@PCSI$DESTINATION:[SYS$STARTUP]FINDUTILS$STARTUP.COM REMOVE" ;
+
+    information POST_INSTALL phase after ;
+
+end product ;
