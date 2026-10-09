@@ -14,9 +14,9 @@ Work in progress.
 
 | Step | IA64 (V8.4-2L3) | x86-64 (E9.2-4) |
 |------|-----------------|-----------------|
-| Configure with VSI C (`tools/vms_configure.sh`) | done | running |
-| Build (`tools/build.sh`) | clean | - |
-| DCL smoke test, 25 checks (`tools/test.sh`) | 25/25 | - |
+| Configure with VSI C (`tools/vms_configure.sh`) | done | done (same answers) |
+| Build (`tools/build.sh`) | clean | clean |
+| DCL smoke test, 25 checks (`tools/test.sh`) | 25/25 | 25/25 |
 | PCSI kit `ISSINOHO <base> FINDUTILS V4.11-0E1` (`tools/kit.sh`) | - | - |
 | Install check (`tools/installcheck.sh`) | - | - |
 
