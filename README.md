@@ -4,6 +4,8 @@
 
 # vms-findutils
 
+[![Downloads](https://img.shields.io/github/downloads/issinoho/vms-findutils/total?label=downloads)](https://github.com/issinoho/vms-findutils/releases)
+
 GNU findutils 4.11.0 (find and xargs) for OpenVMS (IA64 and x86-64), built natively with VSI C.
 
 The repository stores only our changes over the signed upstream release:
