@@ -9,10 +9,12 @@ Only the file names are quoted: with "+" the arguments after the
 initial ones, with ";" the words that contained {}; the words the user
 typed are passed to DCL as they are, so qualifiers and keywords work.
 A command line too long for DCL returns 0, as for E2BIG, and
-bc_do_exec() tries again with fewer arguments.
+bc_do_exec() tries again with fewer arguments.  launch() stores the
+exit code in last_child_status, and -exec ... ; tests it directly: there
+is no waitpid() status to decode.
 
 --- a/find/exec.c	2026-06-28 12:28:31.000000000 +0100
-+++ b/find/exec.c	2026-10-09 19:54:42.136612062 +0100
++++ b/find/exec.c	2026-10-09 21:05:14.828420648 +0100
 @@ -38,6 +38,9 @@
  #include "defs.h"
  #include "fdleak.h"
@@ -23,7 +25,26 @@ bc_do_exec() tries again with fewer arguments.
  
  
  /* Initialize exec->wd_for_exec.
-@@ -316,6 +319,51 @@
+@@ -187,6 +190,10 @@
+ 
+       /* Actually invoke the command. */
+       bc_do_exec (&execp->ctl, &execp->state);
++#ifdef __VMS
++      /* launch () stores the command's exit code itself (no waitpid ()).  */
++      result = 0 == execp->last_child_status;
++#else
+       if (WIFEXITED(execp->last_child_status))
+         {
+           if (0 == WEXITSTATUS(execp->last_child_status))
+@@ -198,6 +205,7 @@
+         {
+           result = false;
+         }
++#endif
+       if (local)
+         free_cwd (execp->wd_for_exec);
+     }
+@@ -316,6 +324,52 @@
        signal (SIGCHLD, SIG_DFL);
      }
  
@@ -70,12 +91,13 @@ bc_do_exec() tries again with fewer arguments.
 +        rc = 1;
 +      }
 +    ex = rc;
++    execp->last_child_status = ex;
 +  }
 +#else
    child_pid = fork ();
    if (child_pid == -1)
      {
-@@ -383,6 +431,7 @@
+@@ -383,6 +437,7 @@
      }
  
    int ex = WEXITSTATUS (execp->last_child_status);

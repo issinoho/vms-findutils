@@ -1,0 +1,39 @@
+Subject: lib/buildcmd.c: on OpenVMS, size command lines for DCL
+
+find -exec ... + and xargs build command lines up to ARG_MAX less the
+environment and POSIX's 2048 bytes of headroom.  On OpenVMS the command
+runs as DCL through LIB$SPAWN (vms/vms_spawn.c), not exec(): the limit is
+DCL's for one command's arguments (VMS_SPAWN_ARGS_MAX, probed: about 4000
+bytes), and the environment reaches the subprocess as logical names and
+symbols, outside it.  With the C RTL's ARG_MAX (4096) the budget left
+was under LINE_MAX, and xargs failed an assertion at startup.
+
+--- a/lib/buildcmd.c	2026-06-27 12:44:31.000000000 +0100
++++ b/lib/buildcmd.c	2026-10-09 21:02:36.044472102 +0100
+@@ -37,6 +37,9 @@
+ /* find headers. */
+ #include "system.h"
+ #include "buildcmd.h"
++#ifdef __VMS
++# include "vms_spawn.h"
++#endif
+ 
+ 
+ /* COMPAT:  SYSV version defaults size (and has a max value of) to 470.
+@@ -493,6 +496,16 @@
+    */
+   ctl->posix_arg_size_min = _POSIX_ARG_MAX;
+   ctl->posix_arg_size_max = bc_get_arg_max ();
++#ifdef __VMS
++  /* Commands run as DCL through LIB$SPAWN (vms/vms_spawn.c), not exec():
++     the limit is DCL's for one command's arguments, and the environment
++     reaches the subprocess as logical names and symbols, outside it.  */
++  (void) size_of_environment;
++  (void) headroom;
++  ctl->posix_arg_size_min = ctl->posix_arg_size_max = VMS_SPAWN_ARGS_MAX;
++  size_of_environment = 0;
++  headroom = 0;
++#endif
+ 
+   ctl->exit_if_size_exceeded = 0;
+ 

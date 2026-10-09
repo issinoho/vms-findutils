@@ -25,10 +25,6 @@
 #include <string.h>
 #include <unistd.h>
 
-/* The longest DCL command line: 8192 bytes on V8.4 and later, less some
-   room for the verb's own expansion.  */
-#define VMS_DCL_MAX 8000
-
 /* %DCL-W-IVVERB, "unrecognized command verb".  */
 #define CLI_IVVERB 0x00038090
 
@@ -54,19 +50,31 @@ set_descriptor (struct dsc$descriptor_s *d, char const *s)
   d->dsc$a_pointer = (char *) s;
 }
 
-/* Whether argument I of ARGV is written in quotes.  */
+/* Whether ARG is unmistakably a VMS file specification: it has a
+   directory or device ([.tree]one.txt, DKA0:[X]Y.Z) and nothing DCL would
+   take apart.  DCL verbs do not strip quotes from a file specification
+   (TYPE "[.tree]one.txt" looks for a name with quotes in it), so such an
+   argument is written as it is.  */
+static bool
+vms_filespec (char const *arg)
+{
+  return strpbrk (arg, "[<:") != NULL && strpbrk (arg, " \t\"/!'") == NULL;
+}
+
+/* Whether argument I of ARGV is written in quotes: data (QUOTE[I]) unless
+   it is a VMS file specification, and anything with a space or empty.  */
 static bool
 quoted (char *const *argv, bool const *quote, size_t i)
 {
-  return (quote ? quote[i] : true)
+  return ((quote ? quote[i] : true) && !vms_filespec (argv[i]))
          || argv[i][0] == '\0' || strpbrk (argv[i], " \t\"") != NULL;
 }
 
-/* The length of ARGV as one DCL command line, as written below.  */
+/* The length of ARGV's arguments (after the verb) as written below.  */
 static size_t
 command_length (char *const *argv, bool const *quote)
 {
-  size_t n = strlen (argv[0]);
+  size_t n = 0;
   size_t i;
   for (i = 1; argv[i]; i++)
     {
@@ -90,7 +98,7 @@ vms_spawn_command (char const *prefix, char *const *argv,
   FILE *c;
   int ch;
 
-  if (command_length (argv, quote) > VMS_DCL_MAX)
+  if (command_length (argv, quote) > VMS_SPAWN_ARGS_MAX)
     return VMS_SPAWN_TOO_LONG;
 
   ++counter;
@@ -129,7 +137,9 @@ vms_spawn_command (char const *prefix, char *const *argv,
       if (q)
         putc ('"', c);
     }
-  fputs ("\n$ exit $status\n", c);
+  /* Exit with the command's status, its message suppressed
+     (STS$M_INHIB_MSG): the command has already reported it.  */
+  fputs ("\n$ exit $status .or. %X10000000\n", c);
   if (fclose (c) != 0)
     {
       delete_all (com);
