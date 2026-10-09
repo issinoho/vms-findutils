@@ -1,14 +1,16 @@
-/* vms_spawn.c - run a program in a subprocess on OpenVMS.
+/* vms_spawn.c - run a DCL command in a subprocess on OpenVMS.
 
-   OpenVMS has no fork(), and a child started with vfork()/execv() inherits
-   the parent's SYS$OUTPUT: when that is redirected to a file the child
-   opens it again, leaving a new, empty version of the user's file.  So the
-   program runs in a subprocess (LIB$SPAWN) executing a small generated DCL
-   procedure that drops the SYS$OUTPUT and SYS$ERROR it inherits, points
-   its own SYS$INPUT and SYS$OUTPUT at the given files, and runs the image
-   with every argument quoted, so DCL keeps their case.  The subprocess's
-   own output (the image's messages) goes to a temporary log, copied to
-   stderr afterwards.  (As in vms-bison and vms-flex.)
+   OpenVMS has no fork(), so find -exec and xargs cannot run a command the
+   Unix way.  They run it as DCL instead (docs/DECISIONS.md D1), so DCL
+   verbs and foreign-command symbols work as well as images.  The
+   subprocess (LIB$SPAWN) runs a small generated procedure.  LIB$SPAWN
+   copies our process logical names, including a SYS$OUTPUT or SYS$ERROR
+   that redirects our own output, and those would make the command reopen
+   the user's file (%DCL-W-UNDFIL, or an empty new version); so the
+   procedure drops them first, then runs the command with every argument
+   but the verb quoted.  The command's output goes to a temporary file,
+   copied to our stdout when it ends: commands run one at a time, so their
+   output stays in order with find's own.  (As in vms-m4 and vms-tar.)
 
    Part of the OpenVMS port of GNU findutils
    (github.com/issinoho/vms-findutils); distributed under the GNU General
@@ -23,8 +25,15 @@
 #include <string.h>
 #include <unistd.h>
 
-void
-vms_delete_all (char const *name)
+/* The longest DCL command line: 8192 bytes on V8.4 and later, less some
+   room for the verb's own expansion.  */
+#define VMS_DCL_MAX 8000
+
+/* %DCL-W-IVVERB, "unrecognized command verb".  */
+#define CLI_IVVERB 0x00038090
+
+static void
+delete_all (char const *name)
 {
   char spec[256];
   struct dsc$descriptor_s d;
@@ -36,30 +45,53 @@ vms_delete_all (char const *name)
   lib$delete_file (&d, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }
 
-void
-vms_temp_name (char *buf, int size, char const *prefix, char const *what)
+static void
+set_descriptor (struct dsc$descriptor_s *d, char const *s)
 {
-  static unsigned int counter;
-  snprintf (buf, size, "SYS$SCRATCH:%s_%08X_%u_%s.TMP",
-            prefix, (unsigned int) getpid (), ++counter, what);
+  d->dsc$w_length = (unsigned short) strlen (s);
+  d->dsc$b_dtype = DSC$K_DTYPE_T;
+  d->dsc$b_class = DSC$K_CLASS_S;
+  d->dsc$a_pointer = (char *) s;
+}
+
+/* The length of ARGV as one DCL command line, as written below.  */
+static size_t
+command_length (char *const *argv)
+{
+  size_t n = strlen (argv[0]);
+  char *const *a;
+  for (a = argv + 1; *a; a++)
+    {
+      char const *p;
+      n += 3;                   /* space and two quotes */
+      for (p = *a; *p; p++)
+        n += 1 + (*p == '"');
+    }
+  return n;
 }
 
 int
-vms_spawn_image (char const *prefix, char const *image,
-                 char const *const *argv, char const *in, char const *out)
+vms_spawn_command (char const *prefix, char *const *argv, bool null_stdin)
 {
-  char com[96], log[96], spawncmd[112];
-  struct dsc$descriptor_s cmd_d, log_d;
+  static unsigned int counter;
+  char com[96], out[96], spawncmd[112];
+  struct dsc$descriptor_s cmd_d, in_d, out_d;
   unsigned int status, completion = 0;
-  char const *const *a;
+  char *const *a;
   FILE *c;
-  int rc;
+  int ch;
 
-  vms_temp_name (com, sizeof com, prefix, "COM");
-  vms_temp_name (log, sizeof log, prefix, "LOG");
+  if (command_length (argv) > VMS_DCL_MAX)
+    return VMS_SPAWN_TOO_LONG;
+
+  ++counter;
+  snprintf (com, sizeof com, "SYS$SCRATCH:%s_%08X_%u.COM",
+            prefix, (unsigned int) getpid (), counter);
+  snprintf (out, sizeof out, "SYS$SCRATCH:%s_%08X_%u.TMP",
+            prefix, (unsigned int) getpid (), counter);
   c = fopen (com, "w");
   if (!c)
-    return -1;
+    return VMS_SPAWN_FAILED;
   fputs ("$ set noon\n"
          "$ set message/nofacility/noseverity/noidentification/notext\n"
          "$ if f$trnlnm(\"SYS$OUTPUT\",\"LNM$PROCESS\",,\"USER\") .nes. \"\""
@@ -71,9 +103,7 @@ vms_spawn_image (char const *prefix, char const *image,
          "$ if f$trnlnm(\"SYS$ERROR\",\"LNM$PROCESS\",,\"SUPERVISOR\") .nes. \"\""
          " then deassign sys$error\n"
          "$ set message/facility/severity/identification/text\n", c);
-  fprintf (c, "$ define/user sys$input %s\n", in);
-  fprintf (c, "$ define/user sys$output %s\n", out);
-  fprintf (c, "$ mcr %s", image);
+  fprintf (c, "$ %s", argv[0]);
   /* One argument per line: DCL limits the length of a record.  */
   for (a = argv + 1; *a; a++)
     {
@@ -90,41 +120,45 @@ vms_spawn_image (char const *prefix, char const *image,
   fputs ("\n$ exit $status\n", c);
   if (fclose (c) != 0)
     {
-      vms_delete_all (com);
-      return -1;
+      delete_all (com);
+      return VMS_SPAWN_FAILED;
     }
 
   snprintf (spawncmd, sizeof spawncmd, "@%s", com);
-  cmd_d.dsc$w_length = (unsigned short) strlen (spawncmd);
-  cmd_d.dsc$b_dtype = DSC$K_DTYPE_T;
-  cmd_d.dsc$b_class = DSC$K_CLASS_S;
-  cmd_d.dsc$a_pointer = spawncmd;
-  log_d.dsc$w_length = (unsigned short) strlen (log);
-  log_d.dsc$b_dtype = DSC$K_DTYPE_T;
-  log_d.dsc$b_class = DSC$K_CLASS_S;
-  log_d.dsc$a_pointer = log;
+  set_descriptor (&cmd_d, spawncmd);
+  set_descriptor (&in_d, "NLA0:");
+  set_descriptor (&out_d, out);
   fflush (stdout);
   fflush (stderr);
-  status = lib$spawn (&cmd_d, 0, &log_d, 0, 0, 0, &completion,
-                      0, 0, 0, 0, 0, 0);
-  vms_delete_all (com);
-  c = fopen (log, "r");
+  status = lib$spawn (&cmd_d, null_stdin ? &in_d : 0, &out_d, 0, 0, 0,
+                      &completion, 0, 0, 0, 0, 0, 0);
+  delete_all (com);
+  c = fopen (out, "r");
   if (c)
     {
-      int ch;
+      /* putc, not fwrite: to a record-oriented stdout the C RTL writes
+         each fwrite item as a record.  */
       while ((ch = getc (c)) != EOF)
-        putc (ch, stderr);
+        putc (ch, stdout);
       fclose (c);
+      fflush (stdout);
     }
-  vms_delete_all (log);
+  delete_all (out);
   if (!(status & 1))
-    return -1;
+    return VMS_SPAWN_FAILED;
+  /* A C program's exit (N) is %X35A000 + N*8 + severity.  Test it before
+     the severity: the C RTL's own encoding has success severity even for
+     N != 0 (the family's ports give it error severity, see vms_exit.c).  */
+  if ((completion & 0x0FFFF000) == 0x0035A000 && (completion & 0x7F8) != 0)
+    return (completion & 0x7F8) >> 3;
   if (completion & 1)
     return 0;
-  /* A C program's exit (N) is %X35A000 + N*8 + severity (see vms_exit.c);
-     anything else is a VMS condition: report it as 2 (trouble).  */
-  rc = (completion & 0x7F8) >> 3;
-  if ((completion & 0x0FFFF800) != 0x0035A000 || rc == 0)
-    rc = 2;
-  return rc;
+  if ((completion & 0x0FFFFFFF) == CLI_IVVERB)
+    return VMS_SPAWN_NOT_FOUND;
+  switch (completion & 7)
+    {
+    case 0: return 1;           /* warning */
+    case 4: return 4;           /* fatal */
+    default: return 2;          /* error */
+    }
 }

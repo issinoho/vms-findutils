@@ -2,7 +2,7 @@
 
 ## D1. Running commands from find -exec and xargs: DCL through LIB$SPAWN
 
-**Status:** decided by the user (2026-10-09); not yet implemented.
+**Status:** decided by the user (2026-10-09); implemented in `vms/vms_spawn.c` and patches 0006 (find) and 0007 (xargs); not yet tested on VMS.
 
 `find/exec.c` (`-exec`, `-execdir`, `-ok`, `-okdir`) and `xargs/xargs.c` run each command
 with `fork()`, `execvp()` and `waitpid()`. VMS has no `fork()`. The command is usually

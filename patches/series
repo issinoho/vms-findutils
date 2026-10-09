@@ -4,3 +4,5 @@
 0003-config-h-assert-guard-vms.patch
 0004-stdio-fwrite-records-vms.patch
 0005-open-directory-vms.patch
+0006-find-exec-without-fork-vms.patch
+0007-xargs-without-fork-vms.patch

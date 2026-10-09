@@ -1,0 +1,73 @@
+Subject: xargs/xargs.c: on OpenVMS, run commands without fork()
+
+OpenVMS has no fork().  xargs_do_exec() runs the command as DCL in a
+subprocess instead, through vms_spawn_command() (vms/vms_spawn.c;
+docs/DECISIONS.md D1), and waits for it.  Its exit code is handled as
+wait_for_proc() would: 255 aborts with status 124, any other non-zero
+code makes xargs exit with 123, a verb DCL does not know gives 127 and a
+subprocess that cannot be created 126.  A command line too long for DCL
+returns 0, as for E2BIG, and bc_do_exec() tries again with fewer
+arguments.  Commands run one at a time, so -P N acts as -P 1: no child is
+ever recorded, and wait_for_proc() has nothing to wait for.
+
+--- a/xargs/xargs.c	2026-07-08 09:20:59.000000000 +0100
++++ b/xargs/xargs.c	2026-10-09 19:45:21.563958353 +0100
+@@ -65,6 +65,9 @@
+ #include "bugreports.h"
+ #include "fdleak.h"
+ #include "findutils-version.h"
++#ifdef __VMS
++# include "vms_spawn.h"
++#endif
+ #include "gcc-function-attributes.h"
+ #include "system.h"
+ 
+@@ -1335,6 +1338,40 @@
+          seq 1 1000 | fmt | while read x ; do echo $x; sleep 1 ; done |
+          ./xargs -P 200 -n 20  sh -c 'echo "$@"; sleep $((1 + $RANDOM % 5))' sleeper
+       */
++#ifdef __VMS
++      /* No fork() on OpenVMS: run the command as DCL in a subprocess
++         (vms/vms_spawn.c, docs/DECISIONS.md D1), one at a time, and
++         handle its exit code as wait_for_proc () would.  */
++      {
++        int rc;
++        (void) child; (void) fd; (void) buf; (void) r;
++        if (bc_args_exceed_testing_limit (argv))
++          rc = VMS_SPAWN_TOO_LONG;
++        else
++          {
++            set_slot_var (0);
++            rc = vms_spawn_command ("XARGS", argv, !keep_stdin);
++          }
++        if (rc == VMS_SPAWN_TOO_LONG)
++          return 0;             /* E2BIG: bc_do_exec tries fewer arguments */
++        if (rc == VMS_SPAWN_FAILED)
++          {
++            error (0, errno, _("failed to run command %s"),
++                   quotearg_n_style (0, locale_quoting_style, argv[0]));
++            exit (XARGS_EXIT_COMMAND_CANNOT_BE_RUN);
++          }
++        if (rc == VMS_SPAWN_NOT_FOUND)
++          exit (XARGS_EXIT_COMMAND_NOT_FOUND);
++        procs_executed = true;
++        if (rc == CHILD_EXIT_PLEASE_STOP_IMMEDIATELY)
++          {
++            error (0, 0, _("%s: exited with status 255; aborting"), argv[0]);
++            exit (XARGS_EXIT_CLIENT_EXIT_255);
++          }
++        if (rc != 0)
++          child_error = XARGS_EXIT_CLIENT_EXIT_NONZERO;
++      }
++#else
+       wait_for_proc (false, 0u);
+ 
+       if (pipe (fd))
+@@ -1474,6 +1511,7 @@
+            */
+           add_proc (child);
+         }
++#endif
+     }
+   return 1;                     /* Success */
+ }
