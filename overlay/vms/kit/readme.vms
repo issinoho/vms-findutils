@@ -33,8 +33,32 @@ Each user then defines the commands (for example in LOGIN.COM):
 
 Use
 ---
-    $ find . "-name" "*.c"            ! list C sources under the current directory
+    $ find . -name "*.c"                          ! Unix names: ./src/main.c
+    $ find [] -name "*.c"                         ! VMS names:  [.src]main.c
+    $ find [] -name "*.log" -exec delete {};* ;   ! DCL verbs work with VMS names
+    $ pipe find . -name "*.c" | xargs grep -l main
+
+(Under the traditional DCL parse style, quote options with capital
+letters, or SET PROCESS/PARSE_STYLE=EXTENDED.)
+
+-exec, -execdir, -ok and xargs run the command as DCL in a subprocess, so
+DCL verbs, foreign-command symbols and @procedures all work.  The words you
+type are DCL syntax, so qualifiers work; file names are quoted unless they
+are VMS file specifications.
+
+A starting point in VMS syntax ([], [.dir], DKA0:[X], dir.dir) gives VMS
+names ([.dir.sub]file.txt, a directory as [.dir]sub.DIR); a Unix one (.,
+dir) gives Unix names.
 
 Known limits
 ------------
-locate and updatedb are not included in this release.
+- locate, updatedb and frcode are not included in this release.
+- xargs -P N runs one command at a time.
+- One subprocess per command: -exec ... ; over many files is slow; use
+  -exec ... + or xargs.
+- A command's arguments are limited to about 4000 bytes (DCL's limit);
+  find and xargs split longer lists over several commands.
+- A @procedure gets unquoted parameters upper-cased by DCL.
+- -fstype reports "unknown".  With a VMS starting point, -printf's %h, %P
+  and %f still give Unix forms.
+- > on the command line is not redirected; use PIPE.
