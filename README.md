@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/banner.svg" alt="GNU findutils for OpenVMS: a DECterm window running find with VMS and Unix names, piping into xargs, and deleting log files with -exec, with the GNU head" width="100%">
+</p>
+
 # vms-findutils
 
 GNU findutils 4.11.0 (find and xargs) for OpenVMS (IA64 and x86-64), built natively with VSI C.
@@ -61,5 +65,32 @@ tools/kit.sh <node>                            # PCSI kit
 tools/installcheck.sh <node>                   # install, verify, remove
 ```
 
-See `CLAUDE.md` for the rules and pitfalls, `docs/PORTING_LOG.md` for each problem met and
-`docs/DECISIONS.md` for the design decisions.
+## What the port changes
+
+| Change | Why |
+|---|---|
+| `0001-getprogname-vms` | gnulib's `getprogname` has no OpenVMS method |
+| `0002-stdlib-vms-exit-severity` + `vms/vms_exit.c` | Under DCL, every non-zero exit (find's 1, xargs's 1 and 123-127) has error severity |
+| `0003-config-h-assert-guard-vms` | `<assert.h>` defines `assert` again after `config.h` |
+| `0004-stdio-fwrite-records-vms` + `vms/vms_fwrite.c` | Each `fwrite` item would be a record on a record-oriented stdout |
+| `0005-open-directory-vms` | The C RTL cannot `open()` a directory: use gnulib's fallback |
+| `0006-find-exec-without-fork-vms` + `vms/vms_spawn.c` | No `fork()`: `-exec`, `-execdir`, `-ok` run DCL through LIB$SPAWN ([D1](docs/DECISIONS.md)) |
+| `0007-xargs-without-fork-vms` | The same for xargs, with its 123-127 exit statuses; `-P` runs one at a time |
+| `0008-buildcmd-dcl-limit-vms` | Command lines sized for DCL (about 4000 bytes of arguments), not `ARG_MAX` |
+| `0009-vms-syntax-names` + `vms/vms_names.c` | VMS-syntax starting points give VMS names ([D2](docs/DECISIONS.md)) |
+| `vms/vms_mountlist.c` | gnulib's mount list has no OpenVMS method; `-fstype` reports `unknown` |
+| `vms-manual.site` | Configure answers the cross run cannot get, such as the C RTL's `getcwd` |
+| `vms/vms_crtl_init.c` | DECC$ features: ODS-5 names, Unix name reporting, argument case |
+
+Every problem met and its fix is in [docs/PORTING_LOG.md](docs/PORTING_LOG.md); the design
+decisions are in [docs/DECISIONS.md](docs/DECISIONS.md), and the rules and pitfalls for working
+on the port in `CLAUDE.md`.
+
+## Artwork
+
+`docs/images/banner.svg` and `docs/images/icon.svg` were made for this project in the style of
+classic DECwindows and VT terminals, like those of its sibling ports. They incorporate the
+[GNU head](https://www.gnu.org/graphics/heckert_gnu.html) by Aurelio A. Heckert, © 2003 Free
+Software Foundation, Inc., used under the Creative Commons Attribution-ShareAlike 2.0 licence.
+The two images are therefore also licensed under
+[CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/).
