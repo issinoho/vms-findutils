@@ -13,4 +13,6 @@ $   exit 44
 $ endif
 $ find :== $FINDUTILS$ROOT:[BIN]FIND.EXE
 $ xargs :== $FINDUTILS$ROOT:[BIN]XARGS.EXE
+$ locate :== $FINDUTILS$ROOT:[BIN]LOCATE.EXE
+$ updatedb :== @FINDUTILS$ROOT:[BIN]UPDATEDB.COM
 $ exit 1

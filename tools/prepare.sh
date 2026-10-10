@@ -184,7 +184,7 @@ subst "" "IA64 and x86-64" < "$kit/readme.vms" > "$kit/README.VMS"; rm -f "$kit/
 mkdir -p "$kit/doc"
 cp "$stage/COPYING" "$kit/doc/COPYING."
 cp "$stage/NEWS" "$kit/doc/NEWS."
-for man in find/find.1 xargs/xargs.1; do
+for man in find/find.1 xargs/xargs.1 locate/locate.1; do
     up=$(basename "$man" .1 | tr a-z A-Z)
     cp "$stage/$man" "$kit/doc/$up.1"
     groff -man -Tascii -P-cbou "$stage/$man" > "$kit/doc/$up.TXT" 2>/dev/null

@@ -21,15 +21,12 @@ BIN = [.BIN_$(ARCH)]
 LIB = $(OBJ)LIBGNU.OLB
 
 CC = CC
+! LOCATE_DB: the default database (findutils' Makefile passes it with -D),
+! written by [.VMS]UPDATEDB.COM (DECISIONS D3).
 CFLAGS = $(CC_QUAL)/NOLIST/INCLUDE_DIRECTORY=("./","./gl/lib","./lib","./find","./locate","./vms")-
-	/DEFINE=($(CC_DEFS),HAVE_CONFIG_H)
+	/DEFINE=($(CC_DEFS),HAVE_CONFIG_H,"LOCATE_DB=""FINDUTILS$ROOT:[DB]LOCATEDB.""")
 
-ALL : $(BIN)FIND.EXE, $(BIN)XARGS.EXE
-	@ CONTINUE
-
-! locate and frcode are not built yet: they need LOCATE_DB and a DCL
-! replacement for the updatedb shell script (README).
-LOCATE : $(BIN)LOCATE.EXE, $(BIN)FRCODE.EXE
+ALL : $(BIN)FIND.EXE, $(BIN)XARGS.EXE, $(BIN)LOCATE.EXE, $(BIN)FRCODE.EXE
 	@ CONTINUE
 
 ! "-": LINK ends with a warning status (%ILINK-W-COMPWARN) when modules

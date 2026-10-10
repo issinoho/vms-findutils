@@ -26,7 +26,7 @@ $ goto env_loop
 $env_done:
 $ close env
 $!
-$ need = "[.BIN_''arch']FIND.EXE,[.BIN_''arch']XARGS.EXE"
+$ need = "[.BIN_''arch']FIND.EXE,[.BIN_''arch']XARGS.EXE,[.BIN_''arch']LOCATE.EXE,[.BIN_''arch']FRCODE.EXE"
 $ i = 0
 $need_loop:
 $ f = f$element(i, ",", need)
@@ -48,7 +48,8 @@ $ if f$search("KIT_''arch'.DIR") .eqs. "" then create/directory 'out'
 $ if f$search("[.KIT_''arch']MAT.DIR") .eqs. "" then create/directory 'mat'
 $ if f$search("''out'*.PCSI;*") .nes. "" then delete/nolog 'out'*.PCSI;*
 $ if f$search("''mat'*.*;*") .nes. "" then delete/nolog 'mat'*.*;*
-$ copy/nolog [.BIN_'arch']FIND.EXE,XARGS.EXE 'mat'
+$ copy/nolog [.BIN_'arch']FIND.EXE,XARGS.EXE,LOCATE.EXE,FRCODE.EXE 'mat'
+$ copy/nolog [.VMS]UPDATEDB.COM 'mat'
 $ copy/nolog [.VMS.KIT]FINDUTILS$STARTUP.COM,FINDUTILS$SETUP.COM,README.VMS 'mat'
 $ copy/nolog [.VMS.KIT.DOC]*.* 'mat'
 $ matspec = f$parse(mat,,,"DEVICE","NO_CONCEAL") + f$parse(mat,,,"DIRECTORY","NO_CONCEAL")

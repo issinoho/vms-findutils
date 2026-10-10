@@ -9,7 +9,7 @@
 ![OpenVMS](https://img.shields.io/badge/OpenVMS-IA64%20%7C%20x86--64-blue)
 [![License](https://img.shields.io/github/license/issinoho/vms-findutils)](COPYING)
 
-GNU findutils 4.11.0 (find and xargs) for OpenVMS (IA64 and x86-64), built natively with VSI C.
+GNU findutils 4.11.0 (find, xargs and locate) for OpenVMS (IA64 and x86-64), built natively with VSI C.
 
 The repository stores only our changes over the signed upstream release:
 - `patches/` holds changes to upstream files, applied in `patches/series` order.
@@ -35,19 +35,23 @@ $ find . -name "*.c"                          ! Unix names: ./src/main.c
 $ find [] -name "*.c"                         ! VMS names:  [.src]main.c
 $ find [] -name "*.log" -exec delete {};* ;   ! DCL verbs work with VMS names
 $ pipe find . -name "*.c" | xargs grep -l main
+$ updatedb                                    ! build the locate database (privileged)
+$ locate login.com                            ! DKA0:[USERS.X]LOGIN.COM
 ```
 
 - **Commands:** `-exec`, `-execdir`, `-ok` and xargs run the command as DCL in a subprocess
   (LIB$SPAWN), so DCL verbs, foreign-command symbols and `@procedures` all work. The words
   you type are DCL syntax, so qualifiers work; file names are quoted unless they are VMS file
   specifications. See [docs/DECISIONS.md](docs/DECISIONS.md) D1.
+- **locate:** `UPDATEDB.COM` indexes every mounted local disk (or the directories given as P1)
+  into `FINDUTILS$ROOT:[DB]LOCATEDB.`; names are in VMS syntax and matched without regard to
+  case. Submit it as a batch job from a privileged account to keep it current. See D3.
 - **File names:** a starting point in VMS syntax (`[]`, `[.dir]`, `DKA0:[X]`, `dir.dir`) gives
   VMS names (`[.dir.sub]file.txt`, a directory as `[.dir]sub.DIR`); a Unix one (`.`, `dir`)
   gives Unix names. See D2.
 
 **Known limits** (also in the kit's README.VMS):
-- locate, updatedb and frcode are not included: updatedb is a shell script and needs a DCL
-  replacement.
+- `PRODUCT REMOVE FINDUTILS` leaves a database written by UPDATEDB.COM in `[FINDUTILS.DB]`.
 - `xargs -P N` runs one command at a time.
 - One subprocess per command: `-exec ... ;` over many files is slow; use `-exec ... +` or
   xargs.
@@ -83,6 +87,8 @@ tools/installcheck.sh <node>                   # install, verify, remove
 | `0007-xargs-without-fork-vms` | The same for xargs, with its 123-127 exit statuses; `-P` runs one at a time |
 | `0008-buildcmd-dcl-limit-vms` | Command lines sized for DCL (about 4000 bytes of arguments), not `ARG_MAX` |
 | `0009-vms-syntax-names` + `vms/vms_names.c` | VMS-syntax starting points give VMS names ([D2](docs/DECISIONS.md)) |
+| `0010-vms-frcode-output-file` | frcode writes the locate database to a named file in binary ([D3](docs/DECISIONS.md)) |
+| `0011-vms-locate-ignore-case` + `vms/updatedb.com` | locate ignores case and exits through `vms_exit`; UPDATEDB.COM replaces the updatedb script |
 | `vms/vms_mountlist.c` | gnulib's mount list has no OpenVMS method; `-fstype` reports `unknown` |
 | `vms-manual.site` | Configure answers the cross run cannot get, such as the C RTL's `getcwd` |
 | `vms/vms_crtl_init.c` | DECC$ features: ODS-5 names, Unix name reporting, argument case |

@@ -40,3 +40,13 @@ One entry per build or run problem, newest last. Triage codes:
 | S | `TYPE "[.tree]one.txt"`: %RMS-F-FNM | DCL verbs keep the quotes of a quoted file specification | VMS file specifications are not quoted (D1) |
 | F | `find [.tree]`: "no such file or directory" | find walks with Unix names and openat; `[.tree]/sub` would be no use either | D2: `vms_names.c` + patch 0009 |
 | – | Test expectations | The C RTL's strerror is lower case ("no such file or directory"); DCL upper-cases a `@procedure`'s unquoted parameters; `$SEVERITY` must be read before a `CALL` | Smoke test corrected |
+
+## 2026-10-10: locate (D3)
+
+| Code | Problem | Root cause | Fix |
+|------|---------|------------|-----|
+| S | No updatedb | It is a shell script | `vms/updatedb.com`: FIND.EXE, SORT, FRCODE.EXE |
+| F | The database could not be written from DCL | Redirected standard output is a record file; the database holds NULs and 0x0A bytes | Patch 0010: frcode writes the file named by its argument, in binary |
+| P | `LOCATE_DB` undefined | findutils' Makefile passes it with `-D` | descrip.mms: `FINDUTILS$ROOT:[DB]LOCATEDB.` |
+| S | `locate x` with no match left DCL success | `main` returned instead of calling `exit()` | Patch 0011: `exit()` on VMS (a missing database still exits 0, as upstream) |
+| – | A device root in a DCL parameter came out lower case | Traditional parse style lower-cases unquoted arguments to a C program | UPDATEDB.COM quotes each root and runs with PARSE_STYLE=EXTENDED |

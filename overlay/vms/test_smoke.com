@@ -28,6 +28,12 @@ $ endif
 $! Global, so the subprocesses that -exec and xargs create see them too.
 $ find :== $'image'
 $ xargs :== $'ximage'
+$ limage = f$parse("LOCATE.EXE;", image)
+$ locate :== $'limage'
+$ bindir = f$parse(image,,,"DEVICE") + f$parse(image,,,"DIRECTORY")
+$! UPDATEDB.COM: next to the images when installed, [.VMS] in the build tree.
+$ updcom = f$search(f$parse("UPDATEDB.COM;", image))
+$ if updcom .eqs. "" then updcom = f$search("''vmsdir'UPDATEDB.COM")
 $ pass == 0
 $ fail == 0
 $ skip == 0
@@ -135,6 +141,17 @@ $count_done:
 $ close m
 $ call check split "n .eq. 800 .and. st"
 $!
+$! --- locate (DECISIONS D3) --------------------------------------------
+$! UPDATEDB.COM indexes [.tree] into test.db with this tree's images.
+$ define/user sys$output upd.txt
+$ @'updcom' "[.tree]" "test.db" "''bindir'"
+$ ust = $status
+$ call check updatedb "ust .and. f$search(""test.db"") .nes. """""
+$ call t locate      0 "[.tree]one.txt"   "locate -d test.db ONE.TXT"
+$ call t locate-vms  0 "[.tree.sub]two.txt" "locate -d test.db ""*.sub]two.txt"""
+$ call t locate-count 0 "2"                "locate -d test.db -c "".txt"""
+$ call t locate-none 1 ""                  "locate -d test.db nothinglikethis"
+$!
 $! Under DCL a failure must have error severity, so ON ERROR and
 $! IF .NOT. $STATUS see it.
 $ define/user sys$output nl:
@@ -154,6 +171,7 @@ $ write sys$output "SMOKE: ''pass' passed, ''fail' failed, ''skip' skipped (''im
 $ set default 'saved_default'
 $ delete/symbol/global find
 $ delete/symbol/global xargs
+$ delete/symbol/global locate
 $ delete/symbol/global echo
 $ delete/symbol/global failcmd
 $ if fail .eq. 0 .and. pass .gt. 0 then exit 1

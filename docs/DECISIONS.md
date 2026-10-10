@@ -68,3 +68,25 @@ output and for `{}`:
 
 **Rejected:** always Unix (DCL verbs in `-exec` cannot use the names); always VMS (breaks
 scripts and tools that expect find's usual output).
+
+## D3. locate: VMS names, all local disks, case-insensitive
+
+**Status:** decided by the user (2026-10-10); `vms/updatedb.com`, patches 0010 and 0011;
+smoke-tested on IA64 and x86-64.
+
+upstream's `updatedb` is a shell script; on VMS it is `UPDATEDB.COM`, which runs FIND.EXE, DCL
+`SORT` and FRCODE.EXE:
+- **Names:** VMS syntax (`DKA0:[USERS.X]LOGIN.COM`), what DCL users and verbs can use: each
+  directory is walked by its VMS name, so find's D2 rule writes VMS names.
+- **Scope:** by default `[000000]` of every mounted local disk (not foreign mounts, shadow set
+  members or remote disks), as updatedb indexes `/` on Unix; P1 names other directories. The
+  master directory's `000000.DIR` is pruned. Unreadable directories are skipped and reported.
+- **Database:** `FINDUTILS$ROOT:[DB]LOCATEDB.` (P2 names another; `LOCATE_PATH` and `-d` as
+  upstream). frcode writes it to a named file in binary (patch 0010): redirected output from
+  DCL is a record file, which would break the database's NULs and 0x0A bytes. The new
+  database replaces the old one only when every step worked.
+- **Case:** locate ignores case by default on VMS (patch 0011): VMS names are
+  case-insensitive, and ODS-2 stores them in upper case.
+
+**Rejected:** Unix names (`/DKA0/USERS/X/LOGIN.COM`: not usable by DCL verbs); the system disk
+only; no default scope; upstream's exact case.

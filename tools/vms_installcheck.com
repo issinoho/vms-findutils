@@ -18,8 +18,11 @@ $ directory/nohead/notrail FINDUTILS$ROOT:[000000...]*.*
 $ @FINDUTILS$ROOT:[000000]FINDUTILS$SETUP.COM
 $ show symbol find
 $ show symbol xargs
+$ show symbol locate
+$ show symbol updatedb
 $ find "--version"
 $ xargs "--version"
+$ locate "--version"
 $ write sys$output "=== SMOKE TEST on installed image"
 $ smoke = tree - "]" + ".VMS]TEST_SMOKE.COM"
 $ @'smoke' FINDUTILS$ROOT:[BIN]FIND.EXE
@@ -32,3 +35,5 @@ $ write sys$output "startup after removal: [", f$search("SYS$STARTUP:FINDUTILS$S
 $ product show product FINDUTILS /producer=ISSINOHO
 $ delete/symbol/global find
 $ delete/symbol/global xargs
+$ delete/symbol/global locate
+$ delete/symbol/global updatedb

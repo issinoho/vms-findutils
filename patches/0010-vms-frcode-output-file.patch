@@ -1,0 +1,29 @@
+Subject: locate/frcode.c: on OpenVMS, write the database to a named file
+
+frcode writes the locate database to standard output.  From DCL,
+redirected output is a record file, and the database's bytes (NULs after
+each name, 0x0A in the prefix counts) would be taken apart into records.
+On VMS frcode takes the database's file name as its one argument and
+writes it in binary; UPDATEDB.COM passes it.
+
+--- a/locate/frcode.c	2026-06-27 12:44:31.000000000 +0100
++++ b/locate/frcode.c	2026-10-10 12:11:27.971157159 +0100
+@@ -255,6 +255,18 @@
+         usage (EXIT_FAILURE);
+       }
+ 
++#ifdef __VMS
++  /* On VMS the database is written to a file named as the one argument,
++     in binary: from DCL, redirected standard output would be a record
++     file, and the database's bytes (NULs, and 0x0A in the prefix counts)
++     would be taken apart into records.  */
++  if (optind + 1 == argc)
++    {
++      if (freopen (argv[optind], "wb", stdout) == NULL)
++        error (EXIT_FAILURE, errno, "%s", argv[optind]);
++      optind++;
++    }
++#endif
+   /* We expect to have no arguments. */
+   if (optind != argc)
+     {

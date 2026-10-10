@@ -1,0 +1,38 @@
+Subject: locate/locate.c: on OpenVMS, ignore case by default; exit status
+
+VMS file names are case-insensitive, and an ODS-2 disk stores them in
+upper case: "locate login.com" should find LOGIN.COM.  On VMS locate
+starts with -i in effect (docs/DECISIONS.md D3).
+
+main() returned dolocate()'s status, which bypasses the exit() that
+patch 0002 routes through vms_exit, so "no match" and a missing database
+left DCL a success status.  On VMS main() calls exit().
+
+--- a/locate/locate.c	2026-06-27 12:44:31.000000000 +0100
++++ b/locate/locate.c	2026-10-10 12:18:23.784824159 +0100
+@@ -1535,7 +1535,13 @@
+   const char *db_name;
+   const char *path_separators = ":";
+   unsigned long int found = 0uL;
++#ifdef __VMS
++  /* VMS file names are case-insensitive (an ODS-2 disk stores them in
++     upper case): "locate login.com" finds LOGIN.COM.  */
++  int ignore_case = 1;
++#else
+   int ignore_case = 0;
++#endif
+   int print = 0;
+   int just_count = 0;
+   int basename_only = 0;
+@@ -1932,5 +1938,11 @@
+   int dbfd = open_secure_db ();
+   drop_privs ();
+ 
++#ifdef __VMS
++  /* exit (), not return: under DCL, vms_exit gives "no match" and errors
++     error severity (as in vms-tar).  */
++  exit (dolocate (argc, argv, dbfd));
++#else
+   return dolocate (argc, argv, dbfd);
++#endif
+ }

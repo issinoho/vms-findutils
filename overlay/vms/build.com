@@ -5,7 +5,7 @@ $!         target defaults to ALL; CLEAN also works.  KEEP_GOING carries on
 $!         past failed compiles so one run reports every error.
 $!
 $! Runs from the top of the prepared source tree regardless of where it is
-$! invoked from.  Output: [.BIN_<arch>]FIND.EXE, XARGS.EXE
+$! invoked from.  Output: [.BIN_<arch>]FIND.EXE, XARGS.EXE, LOCATE.EXE, FRCODE.EXE
 $!
 $ status = 44  ! SS$_ABORT unless the build runs
 $ on control_y then goto done

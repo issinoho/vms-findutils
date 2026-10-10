@@ -8,3 +8,5 @@
 0007-xargs-without-fork-vms.patch
 0008-buildcmd-dcl-limit-vms.patch
 0009-vms-syntax-names.patch
+0010-vms-frcode-output-file.patch
+0011-vms-locate-ignore-case.patch
