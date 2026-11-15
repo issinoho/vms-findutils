@@ -52,6 +52,7 @@ $ if f$search("''mat'*.*;*") .nes. "" then delete/nolog 'mat'*.*;*
 $ copy/nolog [.BIN_'arch']FIND.EXE,XARGS.EXE,LOCATE.EXE,FRCODE.EXE 'mat'
 $ copy/nolog [.VMS]UPDATEDB.COM 'mat'
 $ copy/nolog [.VMS.KIT]FINDUTILS$STARTUP.COM,FINDUTILS$SETUP.COM,README.VMS 'mat'
+$ if base .eqs. "AXPVMS" then copy/nolog [.VMS.KIT]README_AXPVMS.VMS 'mat'README.VMS
 $ copy/nolog [.VMS.KIT.DOC]*.* 'mat'
 $ matspec = f$parse(mat,,,"DEVICE","NO_CONCEAL") + f$parse(mat,,,"DIRECTORY","NO_CONCEAL")
 $!

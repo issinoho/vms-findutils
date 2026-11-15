@@ -56,3 +56,42 @@ gl_cv_func_getcwd_path_max='no, but it is partly working'
 # it substitutes NEXT_STDBIT_H ("///usr/include/stdbit.h") into an sed
 # expression delimited by '/'.
 ac_cv_header_stdbit_h=no
+
+# OpenVMS Alpha (V8.4-2L2, VSI C V7.4-002): the staged config.h, generated from the IA64
+# answers (configure-ia64.cache), is shared by all three architectures.  No full configure
+# was run on the Alpha.  Instead every test program that the IA64 configure run sends to
+# VSI C was compiled, linked or preprocessed on the node with the real compiler qualifiers
+# and defines (ccflags.txt, which already has /FLOAT=IEEE_FLOAT/IEEE_MODE=DENORM_RESULTS),
+# as the compile server does, in one batch job.  The programs were collected by running the
+# real configure on the host against the IA64 answer memo with a recording compiler stub
+# (no node needed; it reproduced configure-ia64.cache exactly, byte for byte, with no memo
+# misses), so they are configure's own text with its confdefs.h.  636 distinct programs
+# (652 calls, some repeated):
+#   - 409 compile tests (213 ok, 196 fail): headers, declarations, types, members and the
+#     compiler-feature tests behind ac_cv_c_*, gl_cv_c_* and gl_cv_header_*.
+#   - 204 link tests (126 ok, 78 fail): the functions (ac_cv_func_*, gnulib's "onwards" and
+#     gl_cv_func_* link checks), ac_cv_lib_* and ac_cv_search_*.
+#   - 23 preprocess tests (15 ok, 8 fail).
+# Result: all 636 give the same verdict on the Alpha as on the IA64 (0 differences).  For
+# the 23 preprocess tests, 20 give the same text as the IA64 apart from the line markers;
+# three differ only in the CRTL's system headers (extra or reordered declarations such as
+# LIB$GET_CURRENT_INVO_CONTEXT and decc$setjmp1, IA64 compiler intrinsics such as __dsrlz and
+# __fc in the pthread_sigmask test), which those tests (a PATH_MAX test, an lseek #error test
+# and a _WIN32 test) ignore.  mempcpy, pthread_sigmask and struct sched_param are not among
+# the programs for the cache: they are settled above, for all architectures.  So the one
+# config.h serves IA64, x86-64 and Alpha.
+# A short run-time probe (linked with the same qualifiers) agrees with the cached run-time
+# answers: long, pointers, size_t, ptrdiff_t, time_t, wchar_t, wint_t and sig_atomic_t are
+# 32 bits, off_t 64; size_t, wchar_t and time_t unsigned, ptrdiff_t, wint_t and
+# sig_atomic_t signed; little-endian; double and float are IEEE with the exponent at
+# "word 1 bit 20" and "word 0 bit 23" (gl_cv_cc_double_expbit0, gl_cv_cc_float_expbit0);
+# denormals are kept (DBL_MIN/4 is not flushed) and overflow gives Infinity;
+# realloc(p,0) returns NULL; open() of a directory fails with ENOENT
+# (gl_cv_func_open_directory_works=no); stat() of "file/" fails; mktime() of 1970-01-01
+# gives -1.  Where the Alpha is better than the cross run's guess (malloc(0) returns
+# non-NULL, getcwd(NULL,0) works), gnulib then uses its own replacement, which is also what
+# the IA64 and x86-64 builds use; the replacements work on every architecture.  One answer is
+# a cross-mode guess that the probe does not match: gl_cv_cc_long_double_expbit0 ("word 2
+# bit 0"; the Alpha's 16-byte long double has its exponent in the top 16 bits).  It is the
+# same on all three architectures, is used only by gnulib's long double formatting, and
+# find, xargs and locate handle no long double values, so it was left as it is.

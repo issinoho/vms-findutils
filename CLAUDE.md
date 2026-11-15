@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guidance for working in this repository: a port of GNU findutils to OpenVMS (IA64 and x86-64)
+Guidance for working in this repository: a port of GNU findutils to OpenVMS (IA64, x86-64 and Alpha)
 that stores only our deltas over the upstream release tarball. Read README.md first; it
 describes the workflow and design. This file covers the rules and the pitfalls.
 
@@ -23,11 +23,55 @@ describes the workflow and design. This file covers the rules and the pitfalls.
   `tools/nodes.conf`.
 - Keep `docs/TESTING.md` and the README status table in step with test results.
 
+## Alpha
+
+- `build.sh`/`test.sh`/`kit.sh`/`installcheck.sh` use `vms.sh batch` there (interactive ssh
+  output is unreliable; a batch job starts in the login directory, so each job sets default
+  to the work directory). `vms.sh` is vms-grep's (it retries a command that never started).
+- DCL: compare architecture names with `.EQS.`, never `.EQ.` (integer compare: every name
+  equals every other). `build.com` upper-cases `F$GETSYI("ARCH_NAME")` and accepts ALPHA.
+- The AXPVMS kit has its own README (`README_AXPVMS.VMS`, copied over README.VMS by
+  `make_kit.com`). Patch level 3 is the Alpha kit; the x86-64 and IA64 kits stay on 2.
+- Floating point: `ccflags.txt` already has `/FLOAT=IEEE_FLOAT/IEEE_MODE=DENORM_RESULTS`
+  for every architecture. Checked on the Alpha (2026-11-15): `-mmin`/`-amin`/`-cmin` (also
+  fractional and exponent forms), `-mtime`/`-atime`/`-ctime`, `-daystart`, `-newer`, `-size`,
+  `-printf %T@ %A@ %C@ %T+ %Tc` (an old file's `%T@` matched its VMS dates) all give the right
+  answers; denormals are kept and overflow gives Infinity.
+- No GNV and no Perl on the Alpha: smoke test (30/30) plus manual checks only (find's upstream
+  suite needs GNV).
+- Configuration: the Alpha uses the shared IA64-derived `config.h`, justified by replaying
+  configure's 636 test programs on the node; see the Alpha note in
+  `overlay/vms/config/vms-manual.site`. The replay recipe: run the real configure on the host
+  against `cache/vmscc-memo/ia64` with a copy of `tools/vmscc` that answers only from the memo
+  and saves each program (it must reproduce `configure-ia64.cache` exactly and report no
+  misses), upload the programs with one `vms.sh putdir`, and compile, link or preprocess each
+  in one batch job with the contents of `ccflags.txt` (about 2 minutes on the node).
+- Alpha-only compiler messages (checked at run time on the node, 2026-11-15):
+  - `%CC-W-MISSINGRETURN` for `parse_help` and `parse_version` (`find/parser.c`) and
+    `pred_quit` (`find/pred.c`): the VSI C 7.4 compiler does not know `usage()`/`exit` never
+    return. Harmless: `find --help` and `--version` print and exit with success severity, and
+    `-quit` stops after the first match.
+  - `%CC-W-INTOVERFL` in `parse-datetime.y` (`ckd_sub`, "(2147483647)+(TM_YEAR_BASE)"): a
+    constant-folded branch of gnulib's overflow macro that is not taken. A probe of
+    `ckd_add`/`ckd_sub`/`ckd_mul` on int, long, time_t (unsigned 32 bits), size_t and long long
+    gave the right result and overflow flag every time, and `-newermt "Jan 1 2020"` and
+    `"Jan 1 4294967295"` (rejected) behave correctly.
+  - About 170 `%CC-I-QUESTCOMPARE` and 6 `QUESTCOMPARE1` are informational (gnulib's `ckd_*`
+    and timespec macros compare unsigned `time_t` and `size_t` with 0). `%LIBRAR-W-COMCOD` and
+    three `%LINK-W-WRNERS` follow from the warnings above; the images are written.
+- Known bug on every architecture (time_t is an unsigned 32-bit type on VMS): gnulib's date
+  parser reads numbers into a `time_t` (`parse-datetime.y`, `yylex`), so a number with a minus
+  sign overflows and `-newermt`/`-newerXt` reject ISO dates (`2020-01-01`; also `1960-01-01`).
+  `get_relative_timestamp` (`find/parser.c`) computes `origin - seconds` in `time_t`, so `-used`
+  fails with "arithmetic overflow ... days" for any value. Seen on the Alpha, deduced for the
+  others from the shared unsigned `time_t`; no patch yet. Dates that work: `yesterday`,
+  `1 hour ago`, `@1577836800`, `Jan 1 2020`, `2020/01/01`, `01/01/2020`.
+
 ## Commands
 
 ```sh
 tools/prepare.sh                        # always first after changing patches/overlay
-tools/build.sh <ia64|x86> [ALL|CLEAN] [KEEP_GOING]
+tools/build.sh <ia64|x86|alpha> [ALL|CLEAN] [KEEP_GOING]
 tools/test.sh <node>                    # smoke test
 tools/vms.sh <node> dcl '<cmd>' ...     # run DCL; also run/batch/put/get
 tools/kit.sh <node>                     # PCSI kit -> out/kits/ (producer ISSINOHO)
