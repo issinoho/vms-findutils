@@ -86,6 +86,11 @@ $ call t name      0 "tree/one.txt|tree/sub/two.txt" "find tree -name ""*.txt"""
 $ call t type-d    0 "tree|tree/empty|tree/sub"      "find tree -type d"
 $ call t empty     0 "tree/empty"            "find tree -empty"
 $ call t missing   1 "find: 'nosuch': no such file or directory" "find nosuch"
+$! Dates where time_t is unsigned (patch 0012): an ISO date has signed numbers,
+$! and -used compares a delta that is never positive.
+$ call t newermt-iso 0 "tree/one.txt"       "find tree -name one.txt -newermt ""2000-01-01"""
+$ call t newermt-not 0 "tree/one.txt"       "find tree -name one.txt ! -newermt ""2099-01-01 12:00"""
+$ call t used      0 "tree/one.txt"          "find tree -name one.txt -used -10000"
 $!
 $! --- find -exec (DCL through LIB$SPAWN) --------------------------------
 $ call t exec-verb 0 "tree/one.txt"          "find tree -name one.txt -exec write sys$output {} ;"

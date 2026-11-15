@@ -43,9 +43,9 @@ other architectures): `-mmin`, `-mtime`, `-amin`, `-atime`, `-daystart`, `-print
 needs GNV, which the Alpha node does not have, so only the smoke test and these checks run
 there. The install check was not run for the Alpha kit.
 
-**Known issue (seen on the Alpha; expected on IA64 and x86-64, where `time_t` is also unsigned, but not run there):** `time_t` is unsigned on VMS, so `-newermt`/`-newer*t`
-with an ISO date (`2020-01-01`, a leading minus sign) and `-used` are rejected; relative
-(`yesterday`, `2 days ago`), `@seconds`, `Jan 1 2020` and `2020/01/01` forms work.
+**Fixed in vms3 (all architectures):** `time_t` is unsigned on VMS, so up to vms2 `-newermt`/`-newer*t`
+rejected ISO dates (`2020-01-01`) and `-used` failed with an overflow message. Patch 0012 fixes
+both; the smoke test checks them.
 
 **Requirements:** OpenVMS IA64, x86-64 or Alpha with VSI C and MMS (tested on IA64 V8.4-2L3,
 x86-64 E9.2-4 and Alpha V8.4-2L2 with VSI C V7.4-002). On the host: git, bash, python3, gcc and
@@ -114,6 +114,7 @@ tools/installcheck.sh <node>                   # install, verify, remove
 | `0009-vms-syntax-names` + `vms/vms_names.c` | VMS-syntax starting points give VMS names ([D2](docs/DECISIONS.md)) |
 | `0010-vms-frcode-output-file` | frcode writes the locate database to a named file in binary ([D3](docs/DECISIONS.md)) |
 | `0011-vms-locate-ignore-case` + `vms/updatedb.com` | locate ignores case and exits through `vms_exit`; UPDATEDB.COM replaces the updatedb script |
+| `0012-unsigned-time-t-dates-used` | `time_t` is unsigned on VMS: the date parser read signed numbers into it, so ISO dates (`2020-01-01`) failed in `-newermt`, and `-used` overflowed |
 | `vms/vms_mountlist.c` | gnulib's mount list has no OpenVMS method; `-fstype` reports `unknown` |
 | `vms-manual.site` | Configure answers the cross run cannot get, such as the C RTL's `getcwd` |
 | `vms/vms_crtl_init.c` | DECC$ features: ODS-5 names, Unix name reporting, argument case |

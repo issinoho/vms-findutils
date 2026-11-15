@@ -1,0 +1,132 @@
+Subject: Dates and -used where time_t is unsigned (OpenVMS)
+
+time_t is an unsigned 32-bit type on OpenVMS.
+
+- parse-datetime's lexer accumulated numbers in a time_t, so any signed
+  number overflowed: an ISO date such as "2020-01-01" (lexed as 2020, -01,
+  -01) was rejected by -newermt with "cannot figure out how to interpret".
+  Accumulate in intmax_t, as the grammar's textint already is; seconds are
+  range-checked into time_t where a timespec is built.
+- find -used compares a delta that is never positive (status change time
+  minus access time) with a negative reference, which an unsigned time_t
+  cannot hold ("arithmetic overflow while converting 1 days").  Offset both
+  by the same constant (0 where time_t is signed), so the comparisons are
+  unchanged.
+
+Nothing changes where time_t is signed.
+
+--- a/find/defs.h
++++ b/find/defs.h
+@@ -59,6 +59,7 @@
+ 
+ # include "regex.h"
+ # include "timespec.h"
++# include "intprops.h"
+ # include "buildcmd.h"
+ # include "quotearg.h"
+ # include "sharefile.h"
+@@ -89,6 +90,12 @@
+ /* The number of seconds in a day. */
+ # define DAYSECS            86400
+ 
++/* Origin for the -used delta (status change time minus access time, which is
++   never positive).  Where time_t is unsigned (OpenVMS) a negative delta cannot
++   be stored, so the delta and its reference time are both offset by the same
++   amount, which leaves every comparison unchanged.  */
++# define USED_ORIGIN (TYPE_SIGNED (time_t) ? (time_t) 0 : TYPE_MAXIMUM (time_t) / 2)
++
+ /* Argument structures for predicates. */
+ 
+ enum comparison_type
+--- a/find/parser.c
++++ b/find/parser.c
+@@ -2364,12 +2364,12 @@
+   if (collect_arg (argv, arg_ptr, &offset_str))
+     {
+       /* The timespec is actually a delta value, so we use an origin of 0. */
+-      struct timespec zero = {0,0};
++      struct timespec zero = {USED_ORIGIN, 0};
+       if (get_relative_timestamp (offset_str, &tval, zero, DAYSECS, errmsg))
+         {
+           our_pred = insert_primary (entry, offset_str);
+           our_pred->args.reftime = tval;
+-          our_pred->est_success_rate = estimate_file_age_success_rate (tval.ts.tv_sec / DAYSECS);
++          our_pred->est_success_rate = estimate_file_age_success_rate (((intmax_t) tval.ts.tv_sec - (intmax_t) USED_ORIGIN) / DAYSECS);
+           return true;
+         }
+       else
+--- a/find/pred.c
++++ b/find/pred.c
+@@ -1056,7 +1056,7 @@
+   if (timespec_cmp (at, ct) < 0)
+     return false;
+ 
+-  delta.tv_sec  = ct.tv_sec  - at.tv_sec;
++  delta.tv_sec  = USED_ORIGIN - (at.tv_sec - ct.tv_sec);
+   delta.tv_nsec = ct.tv_nsec - at.tv_nsec;
+   if (delta.tv_nsec < 0)
+     {
+--- a/gl/lib/parse-datetime.c
++++ b/gl/lib/parse-datetime.c
+@@ -3100,7 +3100,7 @@
+           else
+             sign = 0;
+ 
+-          time_t value = 0;
++          intmax_t value = 0;
+           do
+             {
+               if (ckd_mul (&value, value, 10))
+@@ -3123,7 +3123,7 @@
+                   pc->input = p;
+                   return tUNUMBER_DOTTED;
+                 }
+-              time_t s = value;
++              intmax_t s = value;
+               int digits;
+               char const *old_p = p;
+ 
+@@ -3165,7 +3165,10 @@
+                   ns = BILLION - ns;
+                 }
+ 
+-              lvalp->timespec = (struct timespec) { .tv_sec = s,
++              time_t sec;
++              if (ckd_add (&sec, s, 0))
++                return '?';
++              lvalp->timespec = (struct timespec) { .tv_sec = sec,
+                                                     .tv_nsec = ns };
+               pc->input = p;
+               return sign ? tSDECIMAL_NUMBER : tUDECIMAL_NUMBER;
+--- a/gl/lib/parse-datetime.y
++++ b/gl/lib/parse-datetime.y
+@@ -1462,7 +1462,7 @@
+           else
+             sign = 0;
+ 
+-          time_t value = 0;
++          intmax_t value = 0;
+           do
+             {
+               if (ckd_mul (&value, value, 10))
+@@ -1485,7 +1485,7 @@
+                   pc->input = p;
+                   return tUNUMBER_DOTTED;
+                 }
+-              time_t s = value;
++              intmax_t s = value;
+               int digits;
+               char const *old_p = p;
+ 
+@@ -1527,7 +1527,10 @@
+                   ns = BILLION - ns;
+                 }
+ 
+-              lvalp->timespec = (struct timespec) { .tv_sec = s,
++              time_t sec;
++              if (ckd_add (&sec, s, 0))
++                return '?';
++              lvalp->timespec = (struct timespec) { .tv_sec = sec,
+                                                     .tv_nsec = ns };
+               pc->input = p;
+               return sign ? tSDECIMAL_NUMBER : tUDECIMAL_NUMBER;
