@@ -23,17 +23,19 @@ The repository stores only our changes over the signed upstream release:
 |------|-----------------|-----------------|------------------|
 | Configure with VSI C (`tools/vms_configure.sh`) | done | done (same answers) | IA64 answers checked on the node (see below) |
 | Build (`tools/build.sh`) | clean | clean | no errors (see below) |
-| DCL smoke test, 30 checks (`tools/test.sh`) | 30/30 | 30/30 | 30/30 |
-| PCSI kit `ISSINOHO <base> FINDUTILS V4.11-0E<n>` (`tools/kit.sh`) | built (E2) | built (E2) | built (E3) |
+| DCL smoke test, 33 checks (`tools/test.sh`) | 33/33 | 33/33 | 33/33 |
+| PCSI kit `ISSINOHO <base> FINDUTILS V4.11-0E<n>` (`tools/kit.sh`) | built (E3) | built (E3) | built (E3) |
 | Install check (`tools/installcheck.sh`): install, smoke 25/25, clean removal (vms1) | pass | pass | not run |
-| vms2 kit upgraded in place over vms1, installed smoke 30/30 | pass | pass | not run |
+| vms2 kit upgraded in place over vms1, installed smoke 30/30 | pass | pass | — |
+| vms3 kit upgraded in place over vms2, installed smoke 33/33 | pass | pass | — |
+| vms3 install check: install, installed smoke 33/33, clean removal | — | — | pass |
 
-**Alpha (v4.11.0-vms3, a dedicated Alpha release; IA64 and x86-64 stay on vms2):** built on
+**Alpha (first kit in v4.11.0-vms3, with IA64 and x86-64):** built on
 OpenVMS Alpha V8.4-2L2 with VSI C V7.4-002. The build has no errors; the compiler gives about
 170 `%CC-I-QUESTCOMPARE` informational messages, `%CC-W-MISSINGRETURN` for the `usage()`-ending
 `parse_help`, `parse_version` and `pred_quit` (they exit; `--help`, `--version` and `-quit` were
 run), and one `%CC-W-INTOVERFL` in `parse-datetime.y` (a branch of gnulib's overflow macro that is
-not taken; checked by probe). The DCL smoke test passes 30/30; kit
+not taken; checked by probe). The DCL smoke test passes 33/33; kit
 `ISSINOHO-AXPVMS-FINDUTILS-V0411-0E3-1.PCSI`. The Alpha shares the IA64-derived `config.h`,
 checked by compiling, linking and preprocessing all 636 test programs of the IA64 configure run
 on the node (same verdict for every one) plus a run-time probe; see
@@ -41,7 +43,7 @@ on the node (same verdict for every one) plus a run-time probe; see
 other architectures): `-mmin`, `-mtime`, `-amin`, `-atime`, `-daystart`, `-printf %T@` and
 `-newermt` with a relative or slash date were checked on the node. find's upstream test suite
 needs GNV, which the Alpha node does not have, so only the smoke test and these checks run
-there. The install check was not run for the Alpha kit.
+there. The install check passed.
 
 **Fixed in vms3 (all architectures):** `time_t` is unsigned on VMS, so up to vms2 `-newermt`/`-newer*t`
 rejected ISO dates (`2020-01-01`) and `-used` failed with an overflow message. Patch 0012 fixes

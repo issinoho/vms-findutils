@@ -31,13 +31,13 @@ describes the workflow and design. This file covers the rules and the pitfalls.
 - DCL: compare architecture names with `.EQS.`, never `.EQ.` (integer compare: every name
   equals every other). `build.com` upper-cases `F$GETSYI("ARCH_NAME")` and accepts ALPHA.
 - The AXPVMS kit has its own README (`README_AXPVMS.VMS`, copied over README.VMS by
-  `make_kit.com`). Patch level 3 is the Alpha kit; the x86-64 and IA64 kits stay on 2.
+  `make_kit.com`). Patch level 3 (v4.11.0-vms3) has kits for all three architectures.
 - Floating point: `ccflags.txt` already has `/FLOAT=IEEE_FLOAT/IEEE_MODE=DENORM_RESULTS`
   for every architecture. Checked on the Alpha (2026-11-15): `-mmin`/`-amin`/`-cmin` (also
   fractional and exponent forms), `-mtime`/`-atime`/`-ctime`, `-daystart`, `-newer`, `-size`,
   `-printf %T@ %A@ %C@ %T+ %Tc` (an old file's `%T@` matched its VMS dates) all give the right
   answers; denormals are kept and overflow gives Infinity.
-- No GNV and no Perl on the Alpha: smoke test (30/30) plus manual checks only (find's upstream
+- No GNV and no Perl on the Alpha: smoke test (33/33) plus manual checks only (find's upstream
   suite needs GNV).
 - Configuration: the Alpha uses the shared IA64-derived `config.h`, justified by replaying
   configure's 636 test programs on the node; see the Alpha note in
@@ -59,13 +59,11 @@ describes the workflow and design. This file covers the rules and the pitfalls.
   - About 170 `%CC-I-QUESTCOMPARE` and 6 `QUESTCOMPARE1` are informational (gnulib's `ckd_*`
     and timespec macros compare unsigned `time_t` and `size_t` with 0). `%LIBRAR-W-COMCOD` and
     three `%LINK-W-WRNERS` follow from the warnings above; the images are written.
-- Known bug on every architecture (time_t is an unsigned 32-bit type on VMS): gnulib's date
-  parser reads numbers into a `time_t` (`parse-datetime.y`, `yylex`), so a number with a minus
-  sign overflows and `-newermt`/`-newerXt` reject ISO dates (`2020-01-01`; also `1960-01-01`).
-  `get_relative_timestamp` (`find/parser.c`) computes `origin - seconds` in `time_t`, so `-used`
-  fails with "arithmetic overflow ... days" for any value. Seen on the Alpha, deduced for the
-  others from the shared unsigned `time_t`; no patch yet. Dates that work: `yesterday`,
-  `1 hour ago`, `@1577836800`, `Jan 1 2020`, `2020/01/01`, `01/01/2020`.
+- Fixed in vms3 on every architecture (patch 0012): `time_t` is an unsigned 32-bit type on VMS.
+  gnulib's date lexer read numbers into a `time_t`, so a signed number overflowed and
+  `-newermt` rejected ISO dates (`2020-01-01`); it now accumulates in `intmax_t`. `-used`
+  compares a never-positive delta with a negative reference; both are offset by `USED_ORIGIN`
+  (`find/defs.h`), 0 where `time_t` is signed. Smoke checks `newermt-iso`, `newermt-not`, `used`.
 
 ## Commands
 
